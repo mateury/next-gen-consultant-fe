@@ -37,6 +37,10 @@ const avatars: AvatarType[] = [
 const AvatarSelection = () => {
   const { user, updateUserAvatar } = useAuth();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [recommendedAvatar] = useState(() => {
+    // Pick a random avatar on component mount
+    return avatars[Math.floor(Math.random() * avatars.length)];
+  });
 
   const handleSelect = (avatar: AvatarType) => {
     setSelectedId(avatar.id);
@@ -49,10 +53,16 @@ const AvatarSelection = () => {
         <div className="text-center mb-8">
           {user?.firstName && user?.lastName && (
             <p className="text-2xl mb-2">
-              {user.firstName} {user.lastName}
+              Miło Cię widzieć, {user.firstName} {user.lastName}
             </p>
           )}
           <h1 className="text-4xl font-bold">Wybierz Doradcę Play</h1>
+          <p className="text-lg text-muted-foreground mt-3">
+            dzisiaj rekomendujemy Ci rozmowę z:{" "}
+            <span className="font-semibold text-purple-600">
+              {recommendedAvatar.name}
+            </span>
+          </p>
         </div>
         <div className="grid grid-cols-4 gap-6">
           {avatars.map((avatar) => (

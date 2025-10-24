@@ -45,7 +45,7 @@ const QRAuth = () => {
         console.log("✅ WebSocket connected for authentication");
         // Send authentication prompt to get user's name
         console.log("📤 Sending authentication request...");
-        ws.send("Podaj moje imie i nazwisko, mój pesel to 85010112345");
+        ws.send("Podaj moje imie i nazwisko, mój pesel to 90020298765");
       };
 
       ws.onmessage = (event) => {
@@ -103,8 +103,16 @@ const QRAuth = () => {
           if (isStreamingComplete) {
             console.log("✅ Complete response received:", userName);
 
-            // Parse first name and last name from the response
-            const nameParts = userName.trim().split(" ");
+            // Extract name from "Imię i nazwisko: Jan Kowalski" format
+            let extractedName = userName.trim();
+            const nameMatch = userName.match(/Imię i nazwisko:\s*(.+)/i);
+            if (nameMatch && nameMatch[1]) {
+              extractedName = nameMatch[1].trim();
+              console.log("📝 Extracted name from format:", extractedName);
+            }
+
+            // Parse first name and last name from the extracted name
+            const nameParts = extractedName.split(" ");
             const firstName = nameParts[0] || "Play";
             const lastName = nameParts.slice(1).join(" ") || "Customer";
 
@@ -113,7 +121,7 @@ const QRAuth = () => {
             // Create user data with received name
             const userData = {
               id: "user_" + Date.now(),
-              name: userName.trim() || "Play Customer", // Fallback if name is empty
+              name: extractedName || "Play Customer", // Use extracted name without prefix
               firstName,
               lastName,
             };
