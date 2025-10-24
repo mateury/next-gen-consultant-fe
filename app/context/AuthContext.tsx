@@ -5,14 +5,16 @@ import { createContext, useContext, useState, ReactNode } from "react";
 interface Avatar {
   id: string;
   name: string;
-  emoji: string;
-  bgColor: string;
-  textColor: string;
+  imageUrl: string;
+  bgColor?: string;
+  emoji?: string;
 }
 
 interface User {
   id: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
   avatar?: Avatar;
 }
 
@@ -20,7 +22,12 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAvatarSelected: boolean;
   user: User | null;
-  login: (userData: { id: string; name: string }) => void;
+  login: (userData: {
+    id: string;
+    name: string;
+    firstName?: string;
+    lastName?: string;
+  }) => void;
   updateUserAvatar: (avatar: Avatar) => void;
   logout: () => void;
 }
@@ -44,7 +51,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [isAvatarSelected, setIsAvatarSelected] = useState(false);
   const [user, setUser] = useState<User | null>(null);
 
-  const login = (userData: { id: string; name: string }) => {
+  const login = (userData: {
+    id: string;
+    name: string;
+    firstName?: string;
+    lastName?: string;
+  }) => {
     setUser(userData);
     setIsAuthenticated(true);
     setIsAvatarSelected(false); // Reset avatar selection when logging in

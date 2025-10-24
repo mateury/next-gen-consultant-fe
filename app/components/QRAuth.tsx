@@ -27,20 +27,172 @@ const QRAuth = () => {
   const { login } = useAuth();
   const { t } = useLanguage();
 
-  const qrCodeData = "PLAY_AUTH_TOKEN_123456789";
+  const qrCodeData = "M_OBYWATEL_123 / MPLAY24_456";
 
   const handleQRScan = () => {
     setIsScanning(true);
 
+    // Small delay before starting the authentication process
     setTimeout(() => {
-      const userData = {
-        id: "user_" + Date.now(),
-        name: "Play Customer",
+      // Create WebSocket connection to authenticate user
+      const ws = new WebSocket("ws://localhost:8000/ws");
+      let hasResponded = false;
+      let fullResponse = "";
+      let isStreamingComplete = false;
+      let messageCount = 0; // Track message count to skip first message (system prompt)
+
+      ws.onopen = () => {
+        console.log("✅ WebSocket connected for authentication");
+        // Send authentication prompt to get user's name
+        console.log("📤 Sending authentication request...");
+        ws.send("Podaj moje imie i nazwisko, mój pesel to 85010112345");
       };
 
-      login(userData);
-      setIsScanning(false);
-    }, 2000);
+      ws.onmessage = (event) => {
+        messageCount++;
+        console.log(`📥 Received message #${messageCount}:`, event.data);
+
+        // Skip the first 2 messages (system prompt and initial response)
+        if (messageCount <= 2) {
+          console.log(`⏭️ Skipping message #${messageCount}`);
+          return;
+        }
+
+        hasResponded = true;
+        try {
+          let userName = event.data;
+
+          // Try to parse JSON response and extract name
+          try {
+            const parsedData = JSON.parse(event.data);
+            console.log("📊 Parsed data:", parsedData);
+
+            // Handle streaming responses
+            if (
+              parsedData.type === "stream_start" ||
+              parsedData.type === "stream_chunk"
+            ) {
+              console.log("🔄 Streaming chunk received:", parsedData.content);
+              fullResponse += parsedData.content || "";
+              return; // Wait for more chunks
+            } else if (parsedData.type === "stream_end") {
+              console.log("✅ Stream ended, final chunk:", parsedData.content);
+              fullResponse += parsedData.content || "";
+              userName = fullResponse;
+              isStreamingComplete = true;
+            } else {
+              // Handle non-streaming responses
+              console.log("📨 Non-streaming response received");
+              if (parsedData.message) {
+                userName = parsedData.message;
+              } else if (parsedData.content) {
+                userName = parsedData.content;
+              } else if (parsedData.text) {
+                userName = parsedData.text;
+              }
+              isStreamingComplete = true;
+            }
+          } catch (error) {
+            // If not JSON, use raw response as name
+            console.log("📝 Plain text response received");
+            userName = event.data;
+            isStreamingComplete = true;
+          }
+
+          // Only process if we have the complete response
+          if (isStreamingComplete) {
+            console.log("✅ Complete response received:", userName);
+
+            // Parse first name and last name from the response
+            const nameParts = userName.trim().split(" ");
+            const firstName = nameParts[0] || "Play";
+            const lastName = nameParts.slice(1).join(" ") || "Customer";
+
+            console.log("👤 Parsed name:", { firstName, lastName });
+
+            // Create user data with received name
+            const userData = {
+              id: "user_" + Date.now(),
+              name: userName.trim() || "Play Customer", // Fallback if name is empty
+              firstName,
+              lastName,
+            };
+
+            console.log("🔐 Logging in with user data:", userData);
+            login(userData);
+            setIsScanning(false);
+
+            // Close connection after a small delay to ensure all messages are processed
+            setTimeout(() => {
+              console.log("🔌 Closing authentication WebSocket");
+              ws.close();
+            }, 100);
+          }
+        } catch (error) {
+          console.error("❌ Error processing authentication response:", error);
+          // Fallback authentication
+          const userData = {
+            id: "user_" + Date.now(),
+            name: "Play Customer",
+            firstName: "Play",
+            lastName: "Customer",
+          };
+          login(userData);
+          setIsScanning(false);
+          setTimeout(() => ws.close(), 100);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error("❌ WebSocket authentication error:", error);
+        if (!hasResponded) {
+          // Fallback authentication on error only if we haven't received a response
+          const userData = {
+            id: "user_" + Date.now(),
+            name: "Play Customer",
+            firstName: "Play",
+            lastName: "Customer",
+          };
+          login(userData);
+          setIsScanning(false);
+        }
+      };
+
+      ws.onclose = (event) => {
+        console.log(
+          "🔌 WebSocket authentication connection closed:",
+          event.code,
+          event.reason
+        );
+      };
+
+      // Timeout fallback in case WebSocket doesn't respond
+      const timeoutId = setTimeout(() => {
+        console.log("⏱️ Authentication timeout reached");
+        if (!hasResponded) {
+          console.log("⚠️ No response received, using fallback");
+          if (
+            ws.readyState === WebSocket.OPEN ||
+            ws.readyState === WebSocket.CONNECTING
+          ) {
+            ws.close();
+          }
+          const userData = {
+            id: "user_" + Date.now(),
+            name: "Play Customer",
+            firstName: "Play",
+            lastName: "Customer",
+          };
+          login(userData);
+          setIsScanning(false);
+        }
+      }, 15000); // 15 second timeout (increased from 10)
+
+      // Clean up timeout if connection closes early
+      ws.addEventListener("close", () => {
+        clearTimeout(timeoutId);
+      });
+    }, 800); // 800ms delay before starting authentication
   };
 
   const QRCodePattern = () => {
@@ -95,189 +247,57 @@ const QRAuth = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen w-full bg-background">
-      {/* Modern Header */}
-      <header className="sticky top-0 z-10 border-b bg-gradient-to-r from-purple-600 to-purple-700">
-        <div className="flex items-center justify-between px-6 py-4">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
-                <Smartphone className="w-5 h-5 text-purple-600" />
+    <div className="min-h-screen w-full bg-background relative">
+      {/* Language Toggle in top-right corner */}
+      <div className="absolute top-6 right-6 z-10">
+        <LanguageToggle />
+      </div>
+
+      {/* Centered Content */}
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="w-full max-w-md">
+          <Card className="border-2 shadow-lg border-purple-100">
+            <CardHeader>
+              <CardTitle className="text-2xl flex items-center justify-center text-center">
+                <QrCode className="w-6 h-6 mr-3 text-purple-600" />
+                Witaj w Play!
+              </CardTitle>
+              <CardDescription className="text-base text-center">
+                Zeskanuj kod QR przy uyciu aplikacji Play24 lub mObywatel aby
+                przejść do rozmowy.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex justify-center">
+                <QRCodePattern />
               </div>
-              <div>
-                <h1 className="text-lg font-semibold text-white">
-                  Play Virtual Assistant
-                </h1>
-                <div className="flex items-center space-x-2">
-                  <Badge
-                    variant="secondary"
-                    className="text-xs bg-purple-500 text-white border-none"
-                  >
-                    <Sparkles className="w-3 h-3 mr-1" />
-                    Step 1 of 3
-                  </Badge>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          <div className="flex items-center space-x-3">
-            <LanguageToggle />
-          </div>
-        </div>
-      </header>
+              <Button
+                onClick={handleQRScan}
+                disabled={isScanning}
+                className="w-full h-14 text-lg bg-purple-600 hover:bg-purple-700"
+                size="lg"
+              >
+                {isScanning ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Łączenie z asystentem...
+                  </>
+                ) : (
+                  <>
+                    <QrCode className="w-5 h-5 mr-2" />
+                    Rozpocznij w trybie demo
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </>
+                )}
+              </Button>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-6xl mx-auto px-6 py-12">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-            {/* Left Column - QR Code & Action */}
-            <div className="space-y-6">
-              <Card className="border-2 shadow-lg border-purple-100">
-                <CardHeader>
-                  <CardTitle className="text-2xl flex items-center">
-                    <QrCode className="w-6 h-6 mr-3 text-purple-600" />
-                    Witaj w Play!
-                  </CardTitle>
-                  <CardDescription className="text-base">
-                    Zeskanuj kod QR swoim smartfonem, aby połączyć się z
-                    wirtualnym doradcą Play i odkryć najlepsze oferty telefonii
-                    komórkowej
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex justify-center">
-                    <QRCodePattern />
-                  </div>
-
-                  <div className="bg-purple-50 dark:bg-purple-950/20 rounded-lg p-4 text-center border border-purple-200">
-                    <p className="text-sm font-medium mb-2">
-                      📱 Otwórz aparat w telefonie i skieruj na kod QR
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Bez pobierania aplikacji • Działa na każdym smartfonie
-                    </p>
-                  </div>
-
-                  <Button
-                    onClick={handleQRScan}
-                    disabled={isScanning}
-                    className="w-full h-14 text-lg bg-purple-600 hover:bg-purple-700"
-                    size="lg"
-                  >
-                    {isScanning ? (
-                      <>
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                        Łączenie z asystentem...
-                      </>
-                    ) : (
-                      <>
-                        <QrCode className="w-5 h-5 mr-2" />
-                        Rozpocznij w trybie demo
-                        <ArrowRight className="w-5 h-5 ml-2" />
-                      </>
-                    )}
-                  </Button>
-
-                  <p className="text-xs text-center text-muted-foreground">
-                    Tryb demo: Kliknij przycisk, aby przetestować asystenta bez
-                    skanowania
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Right Column - How it Works */}
-            <div className="space-y-6">
-              <Card className="border-2 shadow-lg border-purple-100">
-                <CardHeader>
-                  <CardTitle className="text-xl text-purple-700">
-                    Jak działa wirtualny asystent Play
-                  </CardTitle>
-                  <CardDescription>
-                    Trzy proste kroki do spersonalizowanej obsługi
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-start space-x-4 p-4 rounded-lg bg-purple-50 dark:bg-purple-950/20 border border-purple-200">
-                    <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center flex-shrink-0 text-white font-bold">
-                      1
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold mb-1">
-                        Skanuj i połącz się
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        Po prostu zeskanuj kod QR aparatem swojego telefonu. Nie
-                        musisz instalować żadnej aplikacji - działa natychmiast.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start space-x-4 p-4 rounded-lg bg-purple-50 dark:bg-purple-950/20 border border-purple-200">
-                    <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center flex-shrink-0 text-white font-bold">
-                      2
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold mb-1">
-                        Wybierz styl doradcy
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        Wybierz osobowość AI, która odpowiada Twoim preferencjom
-                        - od profesjonalnego doradcy po przyjaznego pomocnika.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start space-x-4 p-4 rounded-lg bg-purple-50 dark:bg-purple-950/20 border border-purple-200">
-                    <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center flex-shrink-0 text-white font-bold">
-                      3
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold mb-1">
-                        Otrzymaj spersonalizowane porady
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        Zadawaj pytania, otrzymuj sugestie dotyczące ofert,
-                        sprawdzaj dostępność i otrzymuj porady ekspertów.
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Features */}
-              <Card className="border-2 shadow-lg border-purple-100">
-                <CardHeader>
-                  <CardTitle className="text-xl flex items-center text-purple-700">
-                    <Sparkles className="w-5 h-5 mr-2 text-purple-600" />
-                    Co możesz zrobić z asystentem Play
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-3">
-                    {[
-                      "Sprawdzić oferty abonamentów i taryf prepaid",
-                      "Zamówić nową usługę lub zmienić obecny plan",
-                      "Porównać modele telefonów i akcesoriów",
-                      "Sprawdzić dostępność urządzeń w sklepie",
-                      "Dowiedzieć się o promocjach i ofertach specjalnych",
-                      "Uzyskać pomoc techniczną i rozwiązać problemy",
-                    ].map((feature, index) => (
-                      <li key={index} className="flex items-start space-x-3">
-                        <div className="w-5 h-5 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <ArrowRight className="w-3 h-3 text-purple-600" />
-                        </div>
-                        <span className="text-sm text-muted-foreground">
-                          {feature}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+              <p className="text-xs text-center text-muted-foreground">
+                Tryb demo: Kliknij przycisk, aby przetestować asystenta bez
+                skanowania
+              </p>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
@@ -8,6 +9,7 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { Badge } from "../../components/ui/badge";
+import { Avatar, AvatarFallback } from "../../components/ui/avatar";
 import {
   Mic,
   Loader2,
@@ -20,7 +22,6 @@ import {
   Phone,
   MicOff,
 } from "lucide-react";
-import { Avatar, AvatarFallback } from "../../components/ui/avatar";
 
 const WebSocketChat = () => {
   const [inputMessage, setInputMessage] = useState("");
@@ -319,11 +320,23 @@ const WebSocketChat = () => {
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
-                        <p className="text-xs font-semibold text-purple-600 mb-1">
-                          {getAssistantName()}
-                        </p>
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-xs font-semibold text-purple-600">
+                            {getAssistantName()}
+                          </p>
+                          {message.isStreaming && (
+                            <div className="flex items-center space-x-1">
+                              <div className="w-1.5 h-1.5 bg-purple-600 rounded-full animate-pulse"></div>
+                              <div className="w-1.5 h-1.5 bg-purple-600 rounded-full animate-pulse delay-75"></div>
+                              <div className="w-1.5 h-1.5 bg-purple-600 rounded-full animate-pulse delay-150"></div>
+                            </div>
+                          )}
+                        </div>
                         <p className="text-sm leading-relaxed whitespace-pre-wrap">
                           {message.content}
+                          {message.isStreaming && (
+                            <span className="inline-block w-1 h-4 bg-purple-600 ml-0.5 animate-pulse"></span>
+                          )}
                         </p>
                       </div>
                     </div>

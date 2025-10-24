@@ -7,6 +7,8 @@ export interface Message {
   content: string;
   timestamp: Date;
   type: "sent" | "received";
+  isStreaming?: boolean;
+  silent?: boolean;
 }
 
 export const useWebSocket = (url: string) => {
@@ -40,14 +42,105 @@ export const useWebSocket = (url: string) => {
       };
 
       ws.onmessage = (event) => {
-        const newMessage: Message = {
-          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-          content: event.data,
-          timestamp: new Date(),
-          type: "received",
-        };
+        try {
+          const parsedData = JSON.parse(event.data);
 
-        setMessages((prev) => [...prev, newMessage]);
+          // Handle streaming messages
+          if (parsedData.type === "stream_start") {
+            // Start a new streaming message
+            const newMessage: Message = {
+              id:
+                parsedData.message_id ||
+                Date.now().toString() + Math.random().toString(36).substr(2, 9),
+              content: parsedData.content || "",
+              timestamp: new Date(),
+              type: "received",
+              isStreaming: true,
+            };
+            setMessages((prev) => [...prev, newMessage]);
+          } else if (parsedData.type === "stream_chunk") {
+            // Append to existing streaming message
+            setMessages((prev) => {
+              const lastMessage = prev[prev.length - 1];
+              if (
+                lastMessage &&
+                lastMessage.isStreaming &&
+                lastMessage.type === "received"
+              ) {
+                return [
+                  ...prev.slice(0, -1),
+                  {
+                    ...lastMessage,
+                    content: lastMessage.content + (parsedData.content || ""),
+                  },
+                ];
+              }
+              // If no streaming message found, create a new one
+              const newMessage: Message = {
+                id:
+                  parsedData.message_id ||
+                  Date.now().toString() +
+                    Math.random().toString(36).substr(2, 9),
+                content: parsedData.content || "",
+                timestamp: new Date(),
+                type: "received",
+                isStreaming: true,
+              };
+              return [...prev, newMessage];
+            });
+          } else if (parsedData.type === "stream_end") {
+            // Mark streaming as complete
+            setMessages((prev) => {
+              const lastMessage = prev[prev.length - 1];
+              if (
+                lastMessage &&
+                lastMessage.isStreaming &&
+                lastMessage.type === "received"
+              ) {
+                return [
+                  ...prev.slice(0, -1),
+                  {
+                    ...lastMessage,
+                    content: lastMessage.content + (parsedData.content || ""),
+                    isStreaming: false,
+                  },
+                ];
+              }
+              return prev;
+            });
+          } else {
+            // Handle non-streaming messages (backward compatibility)
+            let messageContent = event.data;
+            if (parsedData.message) {
+              messageContent = parsedData.message;
+            } else if (parsedData.content) {
+              messageContent = parsedData.content;
+            } else if (parsedData.text) {
+              messageContent = parsedData.text;
+            }
+
+            const newMessage: Message = {
+              id:
+                parsedData.message_id ||
+                Date.now().toString() + Math.random().toString(36).substr(2, 9),
+              content: messageContent,
+              timestamp: new Date(),
+              type: "received",
+              isStreaming: false,
+            };
+            setMessages((prev) => [...prev, newMessage]);
+          }
+        } catch (error) {
+          // If it's not valid JSON, treat as a complete message
+          const newMessage: Message = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+            content: event.data,
+            timestamp: new Date(),
+            type: "received",
+            isStreaming: false,
+          };
+          setMessages((prev) => [...prev, newMessage]);
+        }
       };
 
       ws.onclose = (event) => {

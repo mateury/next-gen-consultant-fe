@@ -120,3 +120,12 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Streaming message animations */
+.delay-75 {
+  animation-delay: 75ms;
+}
+
+.delay-150 {
+  animation-delay: 150ms;
+}
