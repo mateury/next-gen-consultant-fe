@@ -1,36 +1,62 @@
 "use client";
 
-import { useLanguage, Language } from "../context/LanguageContext";
+import { useLanguage } from "../context/LanguageContext";
+import { Button } from "../../components/ui/button";
+import { Languages } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../../components/ui/dropdown-menu";
 
 interface LanguageToggleProps {
   className?: string;
 }
 
 const LanguageToggle = ({ className = "" }: LanguageToggleProps) => {
-  const { language, setLanguage, t } = useLanguage();
-
-  const toggleLanguage = () => {
-    setLanguage(language === "en" ? "pl" : "en");
-  };
+  const { language, setLanguage } = useLanguage();
 
   return (
-    <div className={`flex items-center space-x-2 ${className}`}>
-      <span className="text-sm text-gray-600 dark:text-gray-400">
-        {t("common.language")}:
-      </span>
-      <button
-        onClick={toggleLanguage}
-        className="flex items-center space-x-1 px-3 py-1 rounded-md bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors text-sm font-medium"
-        title={`${t("common.language")}: ${
-          language === "en" ? t("common.english") : t("common.polish")
-        }`}
-      >
-        <span className="text-lg">{language === "en" ? "🇺🇸" : "🇵🇱"}</span>
-        <span className="text-gray-700 dark:text-gray-300">
-          {language === "en" ? "EN" : "PL"}
-        </span>
-      </button>
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className={`${className} min-w-[120px]`}
+        >
+          <div className="flex items-center justify-center w-full">
+            <Languages className="w-4 h-4 mr-2" />
+            <span className="text-lg mr-2">
+              {language === "en" ? "🇺🇸" : "🇵🇱"}
+            </span>
+            <span className="font-medium">
+              {language === "en" ? "EN" : "PL"}
+            </span>
+          </div>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-40">
+        <DropdownMenuItem
+          onClick={() => setLanguage("en")}
+          className={`cursor-pointer ${language === "en" ? "bg-muted" : ""}`}
+        >
+          <div className="flex items-center w-full">
+            <span className="text-lg mr-3">🇺🇸</span>
+            <span className="font-medium">English</span>
+          </div>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => setLanguage("pl")}
+          className={`cursor-pointer ${language === "pl" ? "bg-muted" : ""}`}
+        >
+          <div className="flex items-center w-full">
+            <span className="text-lg mr-3">🇵🇱</span>
+            <span className="font-medium">Polski</span>
+          </div>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 

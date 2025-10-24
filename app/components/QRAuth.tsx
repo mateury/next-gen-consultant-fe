@@ -13,24 +13,29 @@ import {
   CardTitle,
 } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
+import {
+  QrCode,
+  Loader2,
+  Shield,
+  Sparkles,
+  ArrowRight,
+  Smartphone,
+} from "lucide-react";
 
 const QRAuth = () => {
   const [isScanning, setIsScanning] = useState(false);
   const { login } = useAuth();
   const { t } = useLanguage();
 
-  // Fake QR code data - in a real app, this would be generated dynamically
-  const qrCodeData = "AUTH_TOKEN_123456789";
+  const qrCodeData = "PLAY_AUTH_TOKEN_123456789";
 
   const handleQRScan = () => {
     setIsScanning(true);
 
-    // Simulate scanning delay
     setTimeout(() => {
-      // Simulate successful authentication
       const userData = {
         id: "user_" + Date.now(),
-        name: "John Doe",
+        name: "Play Customer",
       };
 
       login(userData);
@@ -38,243 +43,262 @@ const QRAuth = () => {
     }, 2000);
   };
 
-  // Simple QR code pattern using CSS with deterministic pattern
   const QRCodePattern = () => {
-    // Create a deterministic pattern based on index to avoid hydration mismatch
     const getPatternClass = (index: number) => {
-      // Use a simple deterministic algorithm based on index
       const row = Math.floor(index / 12);
       const col = index % 12;
-      // Create a pattern that looks QR-code-like but is deterministic
       return (row + col) % 3 === 0 || (row * col) % 7 === 0
         ? "bg-black"
         : "bg-white";
     };
 
     return (
-      <div className="relative bg-white p-4 rounded-lg shadow-lg">
-        <div className="w-48 h-48 bg-black relative overflow-hidden">
-          {/* QR Code pattern simulation */}
+      <div className="relative bg-white p-8 rounded-2xl shadow-2xl border-4 border-purple-200">
+        <div className="w-72 h-72 bg-black relative overflow-hidden rounded-xl">
           <div className="absolute inset-0 grid grid-cols-12 gap-0">
             {Array.from({ length: 144 }, (_, i) => (
               <div key={i} className={getPatternClass(i)} />
             ))}
           </div>
 
-          {/* Corner squares (typical QR code markers) */}
-          <div className="absolute top-1 left-1 w-8 h-8 bg-black">
-            <div className="absolute top-1 left-1 w-6 h-6 bg-white">
-              <div className="absolute top-1 left-1 w-4 h-4 bg-black"></div>
+          {/* Corner markers */}
+          <div className="absolute top-2 left-2 w-12 h-12 bg-black">
+            <div className="absolute top-1.5 left-1.5 w-9 h-9 bg-white">
+              <div className="absolute top-1.5 left-1.5 w-6 h-6 bg-black"></div>
             </div>
           </div>
-          <div className="absolute top-1 right-1 w-8 h-8 bg-black">
-            <div className="absolute top-1 right-1 w-6 h-6 bg-white">
-              <div className="absolute top-1 right-1 w-4 h-4 bg-black"></div>
+          <div className="absolute top-2 right-2 w-12 h-12 bg-black">
+            <div className="absolute top-1.5 right-1.5 w-9 h-9 bg-white">
+              <div className="absolute top-1.5 right-1.5 w-6 h-6 bg-black"></div>
             </div>
           </div>
-          <div className="absolute bottom-1 left-1 w-8 h-8 bg-black">
-            <div className="absolute bottom-1 left-1 w-6 h-6 bg-white">
-              <div className="absolute bottom-1 left-1 w-4 h-4 bg-black"></div>
+          <div className="absolute bottom-2 left-2 w-12 h-12 bg-black">
+            <div className="absolute bottom-1.5 left-1.5 w-9 h-9 bg-white">
+              <div className="absolute bottom-1.5 left-1.5 w-6 h-6 bg-black"></div>
             </div>
           </div>
 
-          {/* Scanning animation overlay */}
           {isScanning && (
-            <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center">
-              <div className="w-full h-1 bg-blue-500 animate-pulse"></div>
+            <div className="absolute inset-0 bg-purple-500/20 flex items-center justify-center backdrop-blur-sm">
+              <div className="w-full h-2 bg-purple-600 animate-pulse shadow-lg"></div>
             </div>
           )}
         </div>
 
-        <div className="mt-2 text-center text-xs text-gray-600">
-          {t("auth.qrCode")} {qrCodeData}
+        <div className="mt-6 text-center">
+          <p className="text-sm font-mono text-muted-foreground bg-muted px-4 py-2 rounded-lg inline-block">
+            {qrCodeData}
+          </p>
         </div>
       </div>
     );
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-6">
-      <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-        <div className="flex justify-center">
-          <Card className="w-full max-w-lg">
-            <CardHeader className="text-center">
-              <div className="flex justify-end mb-4">
-                <LanguageToggle />
+    <div className="flex flex-col h-screen w-full bg-background">
+      {/* Modern Header */}
+      <header className="sticky top-0 z-10 border-b bg-gradient-to-r from-purple-600 to-purple-700">
+        <div className="flex items-center justify-between px-6 py-4">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
+                <Smartphone className="w-5 h-5 text-purple-600" />
               </div>
-              <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg
-                  className="w-8 h-8 text-primary-foreground"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                  />
-                </svg>
+              <div>
+                <h1 className="text-lg font-semibold text-white">
+                  Play Virtual Assistant
+                </h1>
+                <div className="flex items-center space-x-2">
+                  <Badge
+                    variant="secondary"
+                    className="text-xs bg-purple-500 text-white border-none"
+                  >
+                    <Sparkles className="w-3 h-3 mr-1" />
+                    Step 1 of 3
+                  </Badge>
+                </div>
               </div>
-              <CardTitle className="text-2xl mb-2">{t("auth.title")}</CardTitle>
-              <CardDescription>{t("auth.subtitle")}</CardDescription>
-            </CardHeader>
+            </div>
+          </div>
 
-            <CardContent className="flex flex-col items-center space-y-6">
-              <QRCodePattern />
+          <div className="flex items-center space-x-3">
+            <LanguageToggle />
+          </div>
+        </div>
+      </header>
 
-              <div className="w-full space-y-4">
-                <Button
-                  onClick={handleQRScan}
-                  disabled={isScanning}
-                  className="w-full"
-                  size="lg"
-                >
-                  {isScanning ? (
-                    <div className="flex items-center justify-center space-x-2">
-                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                      <span>{t("auth.authenticating")}</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center space-x-2">
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
-                        />
-                      </svg>
-                      <span>{t("auth.scanButton")}</span>
-                    </div>
-                  )}
-                </Button>
-
-                <p className="text-xs text-muted-foreground text-center">
-                  {t("auth.clickToScan")}
-                </p>
-              </div>
-
-              <Card className="w-full">
+      {/* Main Content */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-6xl mx-auto px-6 py-12">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+            {/* Left Column - QR Code & Action */}
+            <div className="space-y-6">
+              <Card className="border-2 shadow-lg border-purple-100">
                 <CardHeader>
-                  <CardTitle className="text-sm">
-                    {t("auth.howItWorks")}
+                  <CardTitle className="text-2xl flex items-center">
+                    <QrCode className="w-6 h-6 mr-3 text-purple-600" />
+                    Witaj w Play!
+                  </CardTitle>
+                  <CardDescription className="text-base">
+                    Zeskanuj kod QR swoim smartfonem, aby połączyć się z
+                    wirtualnym doradcą Play i odkryć najlepsze oferty telefonii
+                    komórkowej
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="flex justify-center">
+                    <QRCodePattern />
+                  </div>
+
+                  <div className="bg-purple-50 dark:bg-purple-950/20 rounded-lg p-4 text-center border border-purple-200">
+                    <p className="text-sm font-medium mb-2">
+                      📱 Otwórz aparat w telefonie i skieruj na kod QR
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Bez pobierania aplikacji • Działa na każdym smartfonie
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={handleQRScan}
+                    disabled={isScanning}
+                    className="w-full h-14 text-lg bg-purple-600 hover:bg-purple-700"
+                    size="lg"
+                  >
+                    {isScanning ? (
+                      <>
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        Łączenie z asystentem...
+                      </>
+                    ) : (
+                      <>
+                        <QrCode className="w-5 h-5 mr-2" />
+                        Rozpocznij w trybie demo
+                        <ArrowRight className="w-5 h-5 ml-2" />
+                      </>
+                    )}
+                  </Button>
+
+                  <p className="text-xs text-center text-muted-foreground">
+                    Tryb demo: Kliknij przycisk, aby przetestować asystenta bez
+                    skanowania
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Security Notice */}
+              <Card className="border-l-4 border-l-green-500 bg-green-50 dark:bg-green-950/20">
+                <CardContent className="p-4">
+                  <div className="flex items-start space-x-3">
+                    <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Shield className="w-3 h-3 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-sm mb-1 text-green-900 dark:text-green-100">
+                        Twoja prywatność jest chroniona
+                      </h4>
+                      <p className="text-xs text-green-800 dark:text-green-200">
+                        Wszystkie rozmowy są szyfrowane i automatycznie usuwane
+                        po zakończeniu sesji. Nigdy nie przechowujemy danych
+                        osobowych.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Right Column - How it Works */}
+            <div className="space-y-6">
+              <Card className="border-2 shadow-lg border-purple-100">
+                <CardHeader>
+                  <CardTitle className="text-xl text-purple-700">
+                    Jak działa wirtualny asystent Play
+                  </CardTitle>
+                  <CardDescription>
+                    Trzy proste kroki do spersonalizowanej obsługi
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-start space-x-4 p-4 rounded-lg bg-purple-50 dark:bg-purple-950/20 border border-purple-200">
+                    <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center flex-shrink-0 text-white font-bold">
+                      1
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold mb-1">
+                        Skanuj i połącz się
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Po prostu zeskanuj kod QR aparatem swojego telefonu. Nie
+                        musisz instalować żadnej aplikacji - działa natychmiast.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start space-x-4 p-4 rounded-lg bg-purple-50 dark:bg-purple-950/20 border border-purple-200">
+                    <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center flex-shrink-0 text-white font-bold">
+                      2
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold mb-1">
+                        Wybierz styl doradcy
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Wybierz osobowość AI, która odpowiada Twoim preferencjom
+                        - od profesjonalnego doradcy po przyjaznego pomocnika.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start space-x-4 p-4 rounded-lg bg-purple-50 dark:bg-purple-950/20 border border-purple-200">
+                    <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center flex-shrink-0 text-white font-bold">
+                      3
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold mb-1">
+                        Otrzymaj spersonalizowane porady
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Zadawaj pytania, otrzymuj sugestie dotyczące ofert,
+                        sprawdzaj dostępność i otrzymuj porady ekspertów.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Features */}
+              <Card className="border-2 shadow-lg border-purple-100">
+                <CardHeader>
+                  <CardTitle className="text-xl flex items-center text-purple-700">
+                    <Sparkles className="w-5 h-5 mr-2 text-purple-600" />
+                    Co możesz zrobić z asystentem Play
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ul className="text-xs text-muted-foreground space-y-1">
-                    <li>• {t("auth.step1")}</li>
-                    <li>• {t("auth.step2")}</li>
-                    <li>• {t("auth.step3")}</li>
+                  <ul className="space-y-3">
+                    {[
+                      "Sprawdzić oferty abonamentów i taryf prepaid",
+                      "Zamówić nową usługę lub zmienić obecny plan",
+                      "Porównać modele telefonów i akcesoriów",
+                      "Sprawdzić dostępność urządzeń w sklepie",
+                      "Dowiedzieć się o promocjach i ofertach specjalnych",
+                      "Uzyskać pomoc techniczną i rozwiązać problemy",
+                    ].map((feature, index) => (
+                      <li key={index} className="flex items-start space-x-3">
+                        <div className="w-5 h-5 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <ArrowRight className="w-3 h-3 text-purple-600" />
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          {feature}
+                        </span>
+                      </li>
+                    ))}
                   </ul>
                 </CardContent>
               </Card>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Information Panel */}
-        <div className="hidden lg:block">
-          <Card className="h-full">
-            <CardHeader>
-              <CardTitle className="text-xl">{t("auth.title")}</CardTitle>
-              <CardDescription className="text-base">
-                Welcome to our secure WebSocket chat application
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-                    <svg
-                      className="w-4 h-4 text-primary"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="font-medium">Secure Authentication</h3>
-                    <p className="text-sm text-muted-foreground">
-                      QR code-based authentication ensures secure access to your
-                      chat sessions.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-                    <svg
-                      className="w-4 h-4 text-primary"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                      />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="font-medium">Real-time Communication</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Experience instant messaging with WebSocket technology for
-                      seamless conversations.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-                    <svg
-                      className="w-4 h-4 text-primary"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                      />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="font-medium">Personalized Experience</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Choose your avatar and customize your chat experience to
-                      match your personality.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t">
-                <h4 className="font-medium mb-2">Supported Languages</h4>
-                <div className="flex space-x-2">
-                  <Badge variant="secondary">🇺🇸 English</Badge>
-                  <Badge variant="secondary">🇵🇱 Polski</Badge>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       </div>
     </div>
