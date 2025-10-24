@@ -103,24 +103,6 @@ const WebSocketChat = () => {
     };
   }, []);
 
-  // // Auto-greeting when connected
-  // useEffect(() => {
-  //   if (isConnected && !hasGreeted && user) {
-  //     setHasGreeted(true);
-  //     setIsGreeting(true);
-  //     // Send silent greeting request to chatbot
-  //     const greetingPrompt = `Przywitaj użytkownika ${user.name} w stylu ${
-  //       user.avatar?.name || "Doradca Play"
-  //     }. Przedstaw się krótko i zachęć do zadania pytania o usługi Play.`;
-  //     sendMessage(greetingPrompt, true); // true = silent message
-
-  //     // Reset greeting flag after a delay
-  //     setTimeout(() => {
-  //       setIsGreeting(false);
-  //     }, 1000);
-  //   }
-  // }, [isConnected, hasGreeted, user, sendMessage]);
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -362,6 +344,7 @@ const WebSocketChat = () => {
               <div className="flex items-center space-x-3 px-3 py-2 rounded-lg bg-white/10 backdrop-blur">
                 <Avatar className="w-8 h-8">
                   <AvatarFallback
+                    avatarId={user.avatar?.id}
                     className={
                       user.avatar?.bgColor || "bg-white text-purple-600"
                     }
@@ -431,6 +414,7 @@ const WebSocketChat = () => {
                     <div className="flex items-start space-x-3 mb-2">
                       <Avatar className="w-8 h-8 flex-shrink-0">
                         <AvatarFallback
+                          avatarId={user?.avatar?.id}
                           className={user?.avatar?.bgColor || "bg-purple-600"}
                         >
                           {user?.avatar?.emoji || "🎯"}

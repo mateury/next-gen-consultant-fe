@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import * as AvatarPrimitive from "@radix-ui/react-avatar"
+import * as React from "react";
+import * as AvatarPrimitive from "@radix-ui/react-avatar";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 function Avatar({
   className,
@@ -18,7 +18,7 @@ function Avatar({
       )}
       {...props}
     />
-  )
+  );
 }
 
 function AvatarImage({
@@ -31,13 +31,57 @@ function AvatarImage({
       className={cn("aspect-square size-full", className)}
       {...props}
     />
-  )
+  );
+}
+
+interface AvatarFallbackProps
+  extends React.ComponentProps<typeof AvatarPrimitive.Fallback> {
+  avatarId?: string;
 }
 
 function AvatarFallback({
   className,
+  avatarId,
+  children,
   ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Fallback>) {
+}: AvatarFallbackProps) {
+  // Map avatar IDs to their cropped image paths
+  const getCroppedAvatarPath = (id?: string) => {
+    if (!id) return null;
+
+    const avatarMap: Record<string, string> = {
+      bartek: "/avatars/konsultant_Bartek_cropped.webp",
+      anastazja: "/avatars/konsultantka_Anastazja_cropped.webp",
+      mateusz: "/avatars/konsultant_Mateusz_cropped.webp",
+      czarek: "/avatars/konsultant_Czarek_cropped.webp",
+    };
+
+    return avatarMap[id.toLowerCase()] || null;
+  };
+
+  const croppedImagePath = getCroppedAvatarPath(avatarId);
+
+  // If we have a cropped avatar, render it as an image
+  if (croppedImagePath) {
+    return (
+      <AvatarPrimitive.Fallback
+        data-slot="avatar-fallback"
+        className={cn(
+          "flex size-full items-center justify-center rounded-full overflow-hidden",
+          className
+        )}
+        {...props}
+      >
+        <img
+          src={croppedImagePath}
+          alt="Avatar"
+          className="size-full object-cover"
+        />
+      </AvatarPrimitive.Fallback>
+    );
+  }
+
+  // Otherwise render the default fallback (emoji or initials)
   return (
     <AvatarPrimitive.Fallback
       data-slot="avatar-fallback"
@@ -46,8 +90,10 @@ function AvatarFallback({
         className
       )}
       {...props}
-    />
-  )
+    >
+      {children}
+    </AvatarPrimitive.Fallback>
+  );
 }
 
-export { Avatar, AvatarImage, AvatarFallback }
+export { Avatar, AvatarImage, AvatarFallback };
