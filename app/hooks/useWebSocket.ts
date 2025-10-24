@@ -184,18 +184,21 @@ export const useWebSocket = (url: string) => {
     reconnectAttempts.current = 0;
   }, []);
 
-  const sendMessage = useCallback((message: string) => {
+  const sendMessage = useCallback((message: string, silent = false) => {
     if (wsRef.current?.readyState === WebSocket.OPEN && message.trim()) {
       wsRef.current.send(message);
 
-      const newMessage: Message = {
-        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-        content: message,
-        timestamp: new Date(),
-        type: "sent",
-      };
+      // Only add to chat if not silent
+      if (!silent) {
+        const newMessage: Message = {
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+          content: message,
+          timestamp: new Date(),
+          type: "sent",
+        };
 
-      setMessages((prev) => [...prev, newMessage]);
+        setMessages((prev) => [...prev, newMessage]);
+      }
       return true;
     }
     return false;

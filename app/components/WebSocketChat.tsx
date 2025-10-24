@@ -88,6 +88,21 @@ const WebSocketChat = () => {
     connect();
   }, [connect]);
 
+  // Auto-greeting when connected
+  useEffect(() => {
+    if (isConnected && !hasGreeted && user) {
+      setHasGreeted(true);
+      setIsGreeting(true);
+      // Send the PESEL prompt to get user information
+      sendMessage("Podaj moje imie i nazwisko, mój pesel to 90020298765", true); // true = silent message
+
+      // Reset greeting flag after a delay
+      setTimeout(() => {
+        setIsGreeting(false);
+      }, 1000);
+    }
+  }, [isConnected, hasGreeted, user, sendMessage]);
+
   // Cleanup media recorder on unmount
   useEffect(() => {
     return () => {
@@ -114,7 +129,7 @@ const WebSocketChat = () => {
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (inputMessage.trim() && isConnected) {
-      const success = sendMessage(inputMessage.trim());
+      const success = sendMessage(inputMessage.trim(), false);
       if (success) {
         setInputMessage("");
         inputRef.current?.focus();
@@ -208,7 +223,7 @@ const WebSocketChat = () => {
 
                   // Step 3: Send the transcribed text to chat if connected
                   if (transcriptionData.transcription.trim() && isConnected) {
-                    sendMessage(transcriptionData.transcription.trim());
+                    sendMessage(transcriptionData.transcription.trim(), false);
                   }
                 } else {
                   // Log error but don't stop recording - invalid chunks can happen
