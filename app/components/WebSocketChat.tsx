@@ -31,6 +31,8 @@ const WebSocketChat = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
   const { user, logout } = useAuth();
   const { t } = useLanguage();
 
@@ -86,6 +88,21 @@ const WebSocketChat = () => {
     connect();
   }, [connect]);
 
+  // Cleanup media recorder on unmount
+  useEffect(() => {
+    return () => {
+      if (
+        mediaRecorderRef.current &&
+        mediaRecorderRef.current.state !== "inactive"
+      ) {
+        mediaRecorderRef.current.stop();
+      }
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, []);
+
   // // Auto-greeting when connected
   // useEffect(() => {
   //   if (isConnected && !hasGreeted && user) {
@@ -130,25 +147,125 @@ const WebSocketChat = () => {
     }
   };
 
-  const toggleListening = () => {
-    if (!recognitionRef.current) {
-      alert(
-        "Twoja przeglądarka nie obsługuje rozpoznawania mowy. Spróbuj Chrome lub Edge."
-      );
+  const toggleListening = async () => {
+    if (listening) {
+      // Stop recording
+      setListening(false);
+
+      if (
+        mediaRecorderRef.current &&
+        mediaRecorderRef.current.state !== "inactive"
+      ) {
+        mediaRecorderRef.current.stop();
+      }
+
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current = null;
+      }
+
       return;
     }
 
-    if (listening) {
-      recognitionRef.current.stop();
-      setListening(false);
-    } else {
-      try {
-        recognitionRef.current.start();
-        setListening(true);
-      } catch (error) {
-        console.error("Error starting speech recognition:", error);
+    // Start recording
+    setListening(true);
+
+    try {
+      // Request microphone access
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+
+      // Create MediaRecorder with 2-second chunks
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: "audio/webm",
+      });
+      mediaRecorderRef.current = mediaRecorder;
+
+      // Handle audio chunks (every 2 seconds)
+      mediaRecorder.ondataavailable = async (event) => {
+        if (event.data.size > 0) {
+          const timestamp = Date.now();
+          const formData = new FormData();
+          formData.append("audio", event.data);
+          formData.append("timestamp", timestamp.toString());
+
+          try {
+            // Step 1: Save the audio chunk
+            const saveResponse = await fetch("/api/save-audio", {
+              method: "POST",
+              body: formData,
+            });
+
+            const saveData = await saveResponse.json();
+            if (saveData.success) {
+              console.log(`Saved audio chunk: ${saveData.filename}`);
+
+              // Wait a moment to ensure file is fully written to disk
+              await new Promise((resolve) => setTimeout(resolve, 150));
+
+              // Step 2: Transcribe the saved audio chunk
+              try {
+                const transcriptionResponse = await fetch(
+                  "/api/transcription",
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      filename: saveData.filename,
+                    }),
+                  }
+                );
+
+                const transcriptionData = await transcriptionResponse.json();
+                if (transcriptionData.success) {
+                  console.log(
+                    `Transcription: ${transcriptionData.transcription}`
+                  );
+
+                  // Step 3: Send the transcribed text to chat if connected
+                  if (transcriptionData.transcription.trim() && isConnected) {
+                    sendMessage(transcriptionData.transcription.trim());
+                  }
+                } else {
+                  // Log error but don't stop recording - invalid chunks can happen
+                  console.warn(
+                    "Transcription failed (chunk may be invalid):",
+                    transcriptionData.error
+                  );
+                }
+              } catch (transcriptionError) {
+                console.error(
+                  "Error calling transcription API:",
+                  transcriptionError
+                );
+              }
+            } else {
+              console.error("Failed to save audio chunk:", saveData.error);
+            }
+          } catch (error) {
+            console.error("Error saving audio chunk:", error);
+          }
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        console.log("Recording stopped");
+      };
+
+      mediaRecorder.onerror = (event) => {
+        console.error("MediaRecorder error:", event);
         setListening(false);
-      }
+      };
+
+      // Start recording with 2-second chunks
+      mediaRecorder.start(4000); // 2000ms = 2 seconds
+      console.log("Recording started - saving 2-second chunks");
+    } catch (error) {
+      console.error("Error accessing microphone:", error);
+      alert("Nie udało się uzyskać dostępu do mikrofonu.");
+      setListening(false);
     }
   };
 
