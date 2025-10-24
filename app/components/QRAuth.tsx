@@ -185,27 +185,6 @@ const QRAuth = () => {
                   </p>
                 </CardContent>
               </Card>
-
-              {/* Security Notice */}
-              <Card className="border-l-4 border-l-green-500 bg-green-50 dark:bg-green-950/20">
-                <CardContent className="p-4">
-                  <div className="flex items-start space-x-3">
-                    <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <Shield className="w-3 h-3 text-white" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-sm mb-1 text-green-900 dark:text-green-100">
-                        Twoja prywatność jest chroniona
-                      </h4>
-                      <p className="text-xs text-green-800 dark:text-green-200">
-                        Wszystkie rozmowy są szyfrowane i automatycznie usuwane
-                        po zakończeniu sesji. Nigdy nie przechowujemy danych
-                        osobowych.
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
 
             {/* Right Column - How it Works */}

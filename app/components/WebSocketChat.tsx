@@ -18,14 +18,18 @@ import {
   Smartphone,
   Wifi,
   Phone,
+  MicOff,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "../../components/ui/avatar";
 
 const WebSocketChat = () => {
   const [inputMessage, setInputMessage] = useState("");
   const [listening, setListening] = useState(false);
+  const [hasGreeted, setHasGreeted] = useState(false);
+  const [isGreeting, setIsGreeting] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<any>(null);
   const { user, logout } = useAuth();
   const { t } = useLanguage();
 
@@ -38,9 +42,66 @@ const WebSocketChat = () => {
     isConnected,
   } = useWebSocket("ws://localhost:8000/ws");
 
+  // Initialize speech recognition
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const SpeechRecognition =
+        (window as any).SpeechRecognition ||
+        (window as any).webkitSpeechRecognition;
+
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = "pl-PL";
+
+        recognition.onresult = (event: any) => {
+          const transcript = event.results[0][0].transcript;
+          setInputMessage(transcript);
+          setListening(false);
+        };
+
+        recognition.onerror = (event: any) => {
+          console.error("Speech recognition error:", event.error);
+          setListening(false);
+        };
+
+        recognition.onend = () => {
+          setListening(false);
+        };
+
+        recognitionRef.current = recognition;
+      }
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
+
   useEffect(() => {
     connect();
   }, [connect]);
+
+  // // Auto-greeting when connected
+  // useEffect(() => {
+  //   if (isConnected && !hasGreeted && user) {
+  //     setHasGreeted(true);
+  //     setIsGreeting(true);
+  //     // Send silent greeting request to chatbot
+  //     const greetingPrompt = `Przywitaj użytkownika ${user.name} w stylu ${
+  //       user.avatar?.name || "Doradca Play"
+  //     }. Przedstaw się krótko i zachęć do zadania pytania o usługi Play.`;
+  //     sendMessage(greetingPrompt, true); // true = silent message
+
+  //     // Reset greeting flag after a delay
+  //     setTimeout(() => {
+  //       setIsGreeting(false);
+  //     }, 1000);
+  //   }
+  // }, [isConnected, hasGreeted, user, sendMessage]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -69,7 +130,25 @@ const WebSocketChat = () => {
   };
 
   const toggleListening = () => {
-    setListening(!listening);
+    if (!recognitionRef.current) {
+      alert(
+        "Twoja przeglądarka nie obsługuje rozpoznawania mowy. Spróbuj Chrome lub Edge."
+      );
+      return;
+    }
+
+    if (listening) {
+      recognitionRef.current.stop();
+      setListening(false);
+    } else {
+      try {
+        recognitionRef.current.start();
+        setListening(true);
+      } catch (error) {
+        console.error("Error starting speech recognition:", error);
+        setListening(false);
+      }
+    }
   };
 
   const formatTime = (date: Date) => {
@@ -131,8 +210,9 @@ const WebSocketChat = () => {
     );
   }
 
-  const aiMessages = messages.filter((m) => m.type === "received");
-  const userMessages = messages.filter((m) => m.type === "sent");
+  // Filter out silent messages (greeting prompts)
+  const aiMessages = messages.filter((m) => m.type === "received" && !m.silent);
+  const userMessages = messages.filter((m) => m.type === "sent" && !m.silent);
 
   const getAssistantName = () => {
     return user?.avatar?.name || "Doradca Play";
@@ -198,40 +278,30 @@ const WebSocketChat = () => {
             </h2>
           </div>
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-            {aiMessages.length === 0 ? (
+            {aiMessages.length === 0 && isGreeting ? (
+              <div className="flex flex-col items-center justify-center h-full text-center px-4">
+                <div className="w-20 h-20 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center mb-4">
+                  <Loader2 className="w-10 h-10 text-purple-600 animate-spin" />
+                </div>
+                <h3 className="font-semibold mb-2">
+                  Przygotowuję się do rozmowy...
+                </h3>
+                <p className="text-sm text-muted-foreground max-w-sm">
+                  Za chwilę Cię przywitam!
+                </p>
+              </div>
+            ) : aiMessages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center px-4">
                 <div className="w-20 h-20 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center mb-4">
                   <MessageSquare className="w-10 h-10 text-purple-600" />
                 </div>
                 <h3 className="font-semibold mb-2">
-                  Witaj! Jestem Twoim {getAssistantName()}
+                  Cześć! Jestem {getAssistantName()}
                 </h3>
-                <p className="text-sm text-muted-foreground max-w-sm mb-6">
-                  Pomogę Ci z usługami Play - od wyboru abonamentu, przez
-                  dodatki, po aktywację kart SIM. Zapytaj mnie o cokolwiek!
+                <p className="text-sm text-muted-foreground max-w-sm">
+                  Zadaj mi pytanie o usługi Play, a postaram się jak najlepiej
+                  Ci pomóc!
                 </p>
-                <div className="space-y-3 w-full max-w-md">
-                  <p className="text-xs font-semibold text-purple-600">
-                    Przykładowe pytania:
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { icon: Phone, text: "Jakie mam abonamenty?" },
-                      { icon: Wifi, text: "Oferta internetu" },
-                      { icon: Smartphone, text: "Nowy telefon" },
-                      { icon: MessageSquare, text: "Aktywuj kartę SIM" },
-                    ].map((item, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setInputMessage(item.text)}
-                        className="flex items-center space-x-2 p-3 rounded-lg bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/20 dark:hover:bg-purple-900/30 border border-purple-200 dark:border-purple-800 transition-colors text-left"
-                      >
-                        <item.icon className="w-4 h-4 text-purple-600 flex-shrink-0" />
-                        <span className="text-xs font-medium">{item.text}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
             ) : (
               aiMessages.map((message) => (
@@ -282,23 +352,45 @@ const WebSocketChat = () => {
                 <div className="w-20 h-20 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center mb-4">
                   <Send className="w-10 h-10 text-purple-600" />
                 </div>
-                <h3 className="font-semibold mb-2">Rozpocznij Rozmowę</h3>
-                <p className="text-sm text-muted-foreground max-w-sm">
-                  Wpisz pytanie poniżej lub użyj mikrofonu. Twoje wiadomości
-                  pojawią się tutaj.
+                <h3 className="font-semibold mb-2">Czekam na Twoje pytanie</h3>
+                <p className="text-sm text-muted-foreground max-w-sm mb-6">
+                  Wpisz pytanie poniżej lub użyj mikrofonu, aby podyktować
+                  wiadomość
                 </p>
+                <div className="space-y-3 w-full max-w-md">
+                  <p className="text-xs font-semibold text-purple-600">
+                    Przykładowe pytania:
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { icon: Phone, text: "Jakie mam abonamenty?" },
+                      { icon: Wifi, text: "Oferta internetu" },
+                      { icon: Smartphone, text: "Nowy telefon" },
+                      { icon: MessageSquare, text: "Aktywuj kartę SIM" },
+                    ].map((item, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setInputMessage(item.text)}
+                        className="flex items-center space-x-2 p-3 rounded-lg bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/20 dark:hover:bg-purple-900/30 border border-purple-200 dark:border-purple-800 transition-colors text-left"
+                      >
+                        <item.icon className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                        <span className="text-xs font-medium">{item.text}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             ) : (
               userMessages.map((message) => (
-                <div key={message.id} className="flex justify-end">
-                  <Card className="bg-purple-600 text-white max-w-[85%]">
+                <div key={message.id} className="flex justify-end w-full">
+                  <Card className="bg-purple-600 text-white max-w-[90%]">
                     <CardContent className="p-4">
                       <div className="flex items-start space-x-3 mb-2">
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <p className="text-xs font-semibold opacity-70 mb-1">
                             Ty
                           </p>
-                          <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
                             {message.content}
                           </p>
                         </div>
@@ -321,6 +413,15 @@ const WebSocketChat = () => {
           {/* Input Area */}
           <div className="border-t bg-card">
             <div className="px-6 py-4">
+              {listening && (
+                <div className="mb-3 p-3 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                  <span className="text-sm text-purple-900 dark:text-purple-100 font-medium">
+                    Słucham... Mów teraz
+                  </span>
+                  <Loader2 className="w-4 h-4 text-purple-600 animate-spin ml-auto" />
+                </div>
+              )}
               <form onSubmit={handleSendMessage} className="space-y-3">
                 <div className="flex space-x-2">
                   <Input
@@ -330,7 +431,7 @@ const WebSocketChat = () => {
                     onChange={(e) => setInputMessage(e.target.value)}
                     onKeyPress={handleKeyPress}
                     placeholder="Zapytaj o abonamenty, usługi, telefony, internet..."
-                    disabled={!isConnected}
+                    disabled={!isConnected || listening}
                     className="flex-1"
                   />
                   <Button
@@ -339,16 +440,22 @@ const WebSocketChat = () => {
                     variant={listening ? "default" : "outline"}
                     onClick={toggleListening}
                     disabled={!isConnected}
-                    title="Wpisz głosem"
+                    title={listening ? "Zatrzymaj nagrywanie" : "Wpisz głosem"}
                     className={
-                      listening ? "bg-purple-600 hover:bg-purple-700" : ""
+                      listening
+                        ? "bg-red-600 hover:bg-red-700"
+                        : "hover:bg-purple-50"
                     }
                   >
-                    <Mic className="w-4 h-4" />
+                    {listening ? (
+                      <MicOff className="w-4 h-4" />
+                    ) : (
+                      <Mic className="w-4 h-4" />
+                    )}
                   </Button>
                   <Button
                     type="submit"
-                    disabled={!isConnected || !inputMessage.trim()}
+                    disabled={!isConnected || !inputMessage.trim() || listening}
                     className="px-6 bg-purple-600 hover:bg-purple-700"
                   >
                     <Send className="w-4 h-4 mr-2" />
@@ -356,7 +463,10 @@ const WebSocketChat = () => {
                   </Button>
                 </div>
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Enter - wyślij • Shift+Enter - nowa linia</span>
+                  <span>
+                    Enter - wyślij • Shift+Enter - nowa linia • Mikrofon -
+                    dyktuj
+                  </span>
                   {messages.length > 0 && (
                     <Button
                       type="button"
