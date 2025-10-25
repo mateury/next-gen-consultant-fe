@@ -21,6 +21,7 @@ import {
   Wifi,
   Phone,
   MicOff,
+  ChevronDown,
 } from "lucide-react";
 
 const WebSocketChat = () => {
@@ -28,7 +29,11 @@ const WebSocketChat = () => {
   const [listening, setListening] = useState(false);
   const [hasGreeted, setHasGreeted] = useState(false);
   const [isGreeting, setIsGreeting] = useState(false);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const userMessagesEndRef = useRef<HTMLDivElement>(null);
+  const aiMessagesContainerRef = useRef<HTMLDivElement>(null);
+  const userMessagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -118,13 +123,26 @@ const WebSocketChat = () => {
     };
   }, []);
 
+  const isNearBottom = (container: HTMLDivElement) => {
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    return scrollHeight - scrollTop - clientHeight < 100; // Within 100px of bottom
+  };
+
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (shouldAutoScroll) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      userMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
+  const handleScroll = (container: HTMLDivElement) => {
+    const nearBottom = isNearBottom(container);
+    setShouldAutoScroll(nearBottom);
   };
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, shouldAutoScroll]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,6 +151,8 @@ const WebSocketChat = () => {
       if (success) {
         setInputMessage("");
         inputRef.current?.focus();
+        // Force autoscroll when user sends a message
+        setShouldAutoScroll(true);
       }
     }
   };
@@ -386,14 +406,18 @@ const WebSocketChat = () => {
       {/* Main Chat Area */}
       <div className="flex-1 flex overflow-hidden">
         {/* AI Responses Panel */}
-        <div className="w-1/2 flex flex-col border-r">
+        <div className="w-1/2 flex flex-col border-r relative">
           <div className="px-6 py-4 border-b bg-purple-50 dark:bg-purple-950/20">
             <h2 className="text-sm font-semibold flex items-center text-purple-900 dark:text-purple-100">
               <MessageSquare className="w-4 h-4 mr-2 text-purple-600" />
               Odpowiedzi {getAssistantName()}
             </h2>
           </div>
-          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          <div
+            ref={aiMessagesContainerRef}
+            className="flex-1 overflow-y-auto px-6 py-4 space-y-4"
+            onScroll={(e) => handleScroll(e.currentTarget)}
+          >
             {aiMessages.length === 0 && isGreeting ? (
               <div className="flex flex-col items-center justify-center h-full text-center px-4">
                 <div className="w-20 h-20 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center mb-4">
@@ -464,6 +488,18 @@ const WebSocketChat = () => {
               ))
             )}
             <div ref={messagesEndRef} />
+            {!shouldAutoScroll && (
+              <Button
+                onClick={() => {
+                  setShouldAutoScroll(true);
+                  scrollToBottom();
+                }}
+                className="absolute bottom-4 right-4 rounded-full w-10 h-10 bg-purple-600 hover:bg-purple-700 shadow-lg"
+                size="icon"
+              >
+                <ChevronDown className="w-4 h-4" />
+              </Button>
+            )}
           </div>
         </div>
 
@@ -475,7 +511,11 @@ const WebSocketChat = () => {
               Twoje Wiadomości
             </h2>
           </div>
-          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          <div
+            ref={userMessagesContainerRef}
+            className="flex-1 overflow-y-auto px-6 py-4 space-y-4"
+            onScroll={(e) => handleScroll(e.currentTarget)}
+          >
             {userMessages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center px-4">
                 <div className="w-20 h-20 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center mb-4">
@@ -537,6 +577,7 @@ const WebSocketChat = () => {
                 </div>
               ))
             )}
+            <div ref={userMessagesEndRef} />
           </div>
 
           {/* Input Area */}
