@@ -10,6 +10,7 @@ import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { Badge } from "../../components/ui/badge";
 import { Avatar, AvatarFallback } from "../../components/ui/avatar";
+import { ElevenLabsClient, play } from "@elevenlabs/elevenlabs-js";
 import {
   Mic,
   Loader2,
@@ -22,6 +23,8 @@ import {
   Phone,
   MicOff,
   ChevronDown,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 
 const WebSocketChat = () => {
@@ -30,6 +33,8 @@ const WebSocketChat = () => {
   const [hasGreeted, setHasGreeted] = useState(false);
   const [isGreeting, setIsGreeting] = useState(false);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [audioEnabled, setAudioEnabled] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const userMessagesEndRef = useRef<HTMLDivElement>(null);
   const aiMessagesContainerRef = useRef<HTMLDivElement>(null);
@@ -49,6 +54,49 @@ const WebSocketChat = () => {
     sendMessage,
     isConnected,
   } = useWebSocket("ws://localhost:8000/ws");
+
+  // Initialize ElevenLabs client
+  const elevenlabs = new ElevenLabsClient({
+    apiKey: process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY, // Use environment variable
+  });
+
+  // Text-to-Speech function
+  const playTextToSpeech = async (text: string) => {
+    if (!audioEnabled || !text.trim()) return;
+
+    try {
+      setIsPlayingAudio(true);
+      const audio = await elevenlabs.textToSpeech.convert(
+        "JBFqnCBsd6RMkjVDRZzb", // voice_id - you can change this
+        {
+          text: text,
+          modelId: "eleven_flash_v2_5",
+          outputFormat: "mp3_44100_128",
+        }
+      );
+
+      // Convert ReadableStream to audio playback
+      const audioBuffer = await new Response(audio).arrayBuffer();
+      const audioBlob = new Blob([audioBuffer], { type: "audio/mpeg" });
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      // Create and play audio element
+      const audioElement = new Audio(audioUrl);
+      audioElement.onended = () => {
+        URL.revokeObjectURL(audioUrl);
+        setIsPlayingAudio(false);
+      };
+      audioElement.onerror = () => {
+        URL.revokeObjectURL(audioUrl);
+        setIsPlayingAudio(false);
+      };
+
+      await audioElement.play();
+    } catch (error) {
+      console.error("Error playing text-to-speech:", error);
+      setIsPlayingAudio(false);
+    }
+  };
 
   // Initialize speech recognition
   useEffect(() => {
@@ -143,6 +191,29 @@ const WebSocketChat = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages, shouldAutoScroll]);
+
+  // Detect when streaming ends and trigger TTS
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    if (
+      lastMessage &&
+      lastMessage.type === "received" &&
+      !lastMessage.isStreaming &&
+      !lastMessage.silent &&
+      audioEnabled
+    ) {
+      // Only play TTS for the most recent AI message that just finished streaming
+      const previousMessage = messages[messages.length - 2];
+      const isNewMessage =
+        !previousMessage ||
+        previousMessage.type !== "received" ||
+        previousMessage.isStreaming;
+
+      if (isNewMessage) {
+        playTextToSpeech(lastMessage.content);
+      }
+    }
+  }, [messages, audioEnabled]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -395,6 +466,24 @@ const WebSocketChat = () => {
                 </div>
               </div>
             )}
+            <Button
+              onClick={() => setAudioEnabled(!audioEnabled)}
+              size="sm"
+              variant="secondary"
+              title={audioEnabled ? "Wyłącz audio" : "Włącz audio"}
+              className={`${isPlayingAudio ? "animate-pulse" : ""}`}
+            >
+              {audioEnabled ? (
+                <Volume2 className="w-4 h-4 mr-2" />
+              ) : (
+                <VolumeX className="w-4 h-4 mr-2" />
+              )}
+              {isPlayingAudio
+                ? "Odtwarzanie..."
+                : audioEnabled
+                ? "Audio"
+                : "Wyciszone"}
+            </Button>
             <Button onClick={logout} size="sm" variant="secondary">
               <LogOut className="w-4 h-4 mr-2" />
               Zakończ
@@ -464,13 +553,18 @@ const WebSocketChat = () => {
                           <p className="text-xs font-semibold text-purple-600">
                             {getAssistantName()}
                           </p>
-                          {message.isStreaming && (
-                            <div className="flex items-center space-x-1">
-                              <div className="w-1.5 h-1.5 bg-purple-600 rounded-full animate-pulse"></div>
-                              <div className="w-1.5 h-1.5 bg-purple-600 rounded-full animate-pulse delay-75"></div>
-                              <div className="w-1.5 h-1.5 bg-purple-600 rounded-full animate-pulse delay-150"></div>
-                            </div>
-                          )}
+                          <div className="flex items-center space-x-2">
+                            {message.isStreaming && (
+                              <div className="flex items-center space-x-1">
+                                <div className="w-1.5 h-1.5 bg-purple-600 rounded-full animate-pulse"></div>
+                                <div className="w-1.5 h-1.5 bg-purple-600 rounded-full animate-pulse delay-75"></div>
+                                <div className="w-1.5 h-1.5 bg-purple-600 rounded-full animate-pulse delay-150"></div>
+                              </div>
+                            )}
+                            {isPlayingAudio && !message.isStreaming && (
+                              <Volume2 className="w-3 h-3 text-purple-600 animate-pulse" />
+                            )}
+                          </div>
                         </div>
                         <p className="text-sm leading-relaxed whitespace-pre-wrap">
                           {message.content}
