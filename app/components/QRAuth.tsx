@@ -45,7 +45,7 @@ const QRAuth = () => {
         console.log("✅ WebSocket connected for authentication");
         // Send authentication prompt to get user's name
         console.log("📤 Sending authentication request...");
-        ws.send("Podaj moje imie i nazwisko, mój pesel to 90020298765");
+        ws.send("Podaj moje imie i nazwisko, mój pesel to 85010112345");
       };
 
       ws.onmessage = (event) => {
@@ -103,20 +103,66 @@ const QRAuth = () => {
           if (isStreamingComplete) {
             console.log("✅ Complete response received:", userName);
 
-            // Extract name from "Imię i nazwisko: Jan Kowalski" format
+            // Extract name from various formats
             let extractedName = userName.trim();
+
+            // Try to match "Imię i nazwisko: Jan Kowalski" format
             const nameMatch = userName.match(/Imię i nazwisko:\s*(.+)/i);
             if (nameMatch && nameMatch[1]) {
               extractedName = nameMatch[1].trim();
-              console.log("📝 Extracted name from format:", extractedName);
+              console.log(
+                "📝 Extracted name from 'Imię i nazwisko:' format:",
+                extractedName
+              );
+            } else {
+              // Try to extract name from greeting format like "Cześć, Anna Nowak!"
+              const greetingMatch = userName.match(
+                /(?:Cześć|Witaj|Dzień dobry),?\s+([A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+(?:\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+)*)[!,.]?/i
+              );
+              if (greetingMatch && greetingMatch[1]) {
+                extractedName = greetingMatch[1].trim();
+                console.log(
+                  "📝 Extracted name from greeting format:",
+                  extractedName
+                );
+              } else {
+                // Try to find any capitalized words that look like names
+                const nameWords = userName.match(
+                  /\b[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+(?:\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+)?\b/g
+                );
+                if (nameWords && nameWords.length >= 2) {
+                  // Take the first two capitalized words as potential first and last name
+                  extractedName = nameWords.slice(0, 2).join(" ");
+                  console.log(
+                    "📝 Extracted name from capitalized words:",
+                    extractedName
+                  );
+                }
+              }
             }
 
             // Parse first name and last name from the extracted name
-            const nameParts = extractedName.split(" ");
-            const firstName = nameParts[0] || "Play";
-            const lastName = nameParts.slice(1).join(" ") || "Customer";
+            const nameParts = extractedName
+              .split(" ")
+              .filter((part: string) => part.trim());
 
-            console.log("👤 Parsed name:", { firstName, lastName });
+            // Ensure we have reasonable name parts (not too long, likely actual names)
+            const validNameParts = nameParts.filter(
+              (part: string) =>
+                part.length >= 2 &&
+                part.length <= 20 &&
+                /^[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]*$/.test(part)
+            );
+
+            const firstName = validNameParts[0] || "Play";
+            const lastName = validNameParts.slice(1).join(" ") || "Customer";
+
+            console.log("👤 Parsed name parts:", nameParts);
+            console.log("👤 Final parsed name:", {
+              firstName,
+              lastName,
+              fullName: extractedName,
+            });
 
             // Create user data with received name
             const userData = {

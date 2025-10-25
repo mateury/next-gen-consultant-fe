@@ -147,7 +147,7 @@ const WebSocketChat = () => {
       setHasGreeted(true);
       setIsGreeting(true);
       // Send the PESEL prompt to get user information
-      sendMessage("Podaj moje imie i nazwisko, mój pesel to 90020298765", true); // true = silent message
+      sendMessage("Podaj moje imie i nazwisko, mój pesel to 85010112345", true); // true = silent message
 
       // Reset greeting flag after a delay
       setTimeout(() => {

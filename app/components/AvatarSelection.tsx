@@ -37,6 +37,9 @@ const avatars: AvatarType[] = [
 const AvatarSelection = () => {
   const { user, updateUserAvatar } = useAuth();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Debug user data
+  console.log("🔍 AvatarSelection - User data:", user);
   const [recommendedAvatar] = useState(() => {
     // Pick a random avatar on component mount
     return avatars[Math.floor(Math.random() * avatars.length)];
@@ -51,9 +54,12 @@ const AvatarSelection = () => {
     <div className="h-screen w-full bg-background flex items-center justify-center p-6">
       <div className="w-full max-w-7xl flex flex-col justify-center">
         <div className="text-center mb-8">
-          {user?.firstName && user?.lastName && (
+          {user && (user.firstName || user.lastName || user.name) && (
             <p className="text-2xl mb-2">
-              Miło Cię widzieć, {user.firstName} {user.lastName}
+              Miło Cię widzieć,{" "}
+              {user.firstName && user.lastName
+                ? `${user.firstName} ${user.lastName}`
+                : user.name}
             </p>
           )}
           <h1 className="text-4xl font-bold">Wybierz Doradcę Play</h1>
